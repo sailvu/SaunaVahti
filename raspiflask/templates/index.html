@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>  
+	<head>
+		<title>SaunaVahti</title>
+		<meta charset="UTF-8">
+		<meta name="SaunaVahti" content="width=device-width, initial-scale=1.0">
+		
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+		<script>window.jQuery || document.write('<script src="{{url_for('static', filename='jquery.js') }}">\x3C/script>')</script>
+	</head>	
+	<body>
+		<div class="container">
+		<div class="jumbotron">
+			<div class="container text-center">
+				<h1>SaunaVahti</h1>
+			</div>
+		</div>
+		<div class="container">
+			<div class="row">
+				<div id="slider-output" class="navbar-header">
+					<p>Tavoitelämpötila: <span id="temperature-goal"></span> &#8451</p>
+				</div>
+				<div id="slider">
+					<input type="range" min="1" max="150" value="75" class="slider-selection" id="my-range">
+				</div>
+				<nav class="navbar">
+				</nav>
+				<button id="start-button" class="btn btn-primary" 
+					onclick="startProgram();toggleButtons();">Käynnistä vahti!</button>
+				<button id="stop-button" class="btn btn-default" disabled
+					onclick="stopProgram();toggleButtons()">Sammuta vahti!</button>
+			</div class="row">
+			<div id=result class="row" style="margin-top:5%">
+				<div>				
+					<img id="picture-frame" class="img-thumbnail img-responsive"> </img>
+				</div>
+			</div>
+		</div>
+		</div>
+		
+		<script>	
+			var active = false;
+			var TIME_INTERVAL = 5000;
+			
+			var pictureFrame = document.getElementById("picture-frame");
+			var slider=document.getElementById("my-range"),
+				output=document.getElementById("temperature-goal");
+			output.innerHTML=slider.value;
+			slider.oninput = function(){
+				output.innerHTML = this.value;
+			}
+			
+			$(document).ready(function(){
+				console.log("page refreshed!");
+				isActive();				
+			});
+			
+			function toggleButtons(){
+				$('#start-button').prop('disabled', $('#start-button').prop('disabled') == true ? false : true);
+				$('#stop-button').prop('disabled', $('#stop-button').prop('disabled') == true ? false : true);
+			};
+			
+			function startProgram(){
+				console.log("startProgram()");
+				active=true;
+				console.log("FE-active: "+active+", TIME_INTERVAL: "+TIME_INTERVAL);			
+				var temperatureGoal=slider.value;
+				setActive();
+				takePicture(temperatureGoal);
+				refreshImage(temperatureGoal);
+			};
+			
+			function setActive(){				
+				$.ajax({
+					url:"/set-active",
+					success: function(response){
+						console.log("BE activated");						
+					}
+				});
+			};
+			
+			function takePicture(temperatureGoal){
+				if(active){					
+					var url = "/start-program:sauna.jpg:"+temperatureGoal+"?t="+new Date().getTime();
+					pictureFrame.src=url;
+					console.log("picture updated");
+				}else{
+					console.log("picture not updated");
+				};
+			};
+			
+			function refreshImage(){				
+				setTimeout(function(){
+					var temperatureGoal=slider.value;
+					takePicture(temperatureGoal)
+					isActive();
+				}, TIME_INTERVAL);
+			};
+			
+			function isActive(){
+				var result ="";
+				$.ajax({					
+					url:"/check-activity",
+					success: function(response){
+						console.log("BE-active: "+response);						
+						if(response=="True"){							
+							if($("#start-button").prop("disabled")==false){
+								active=true;
+								$('#start-button').prop('disabled', true);
+								$('#stop-button').prop('disabled', false);
+								var temperatureGoal=slider.value;
+								takePicture(temperatureGoal)
+							};
+							refreshImage();							
+						}					
+					}
+				});				
+			};
+			function stopProgram(){
+				active=false;
+				var url ="";
+				pictureFrame.src=url;
+				$.ajax({
+					url:"/stop-program",
+					success: function(response){
+						console.log("Program stopped");
+					}
+				});
+			};
+		</script>
+	</body>
+	<footer>
+	</footer>
+</html>
